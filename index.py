@@ -52,8 +52,10 @@ class Runner(object):
         status = None
         res = None
         ruta = entorno['PATH_INFO']
+
         if ruta in self.mostrar:
             status = '200 OK'
+            print self.regla
             res = self.pagina_inicio() # TODO: renderizar el metodo de que trae la regla actual para mostrar su contenido
         else:
             status = '404 NOT FOUND'
@@ -101,9 +103,15 @@ class Runner(object):
 
     def ruta(self, regla, **opciones):
         def decorador(funcion):
+            # self.regla[regla] = funcion
+            # return funcion
             parametro = opciones.pop('parametro', None)
             self.agregar_regla_url(regla, parametro, funcion, **opciones)
         return decorador
+
+    def namecall(self, name, *args, **kwargs):
+        if name in self.funcion:
+            self.funcion[name](*args,**kwargs)
 
     def correr(self, dominio='127.0.0.1', puerto=8000):
         httpd = make_server(dominio, puerto, self)
