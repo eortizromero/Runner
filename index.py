@@ -21,7 +21,8 @@ def pagina(archivo_html=None):
     if archivo_html is not None:
         if archivo_html != '':
             if not isinstance(archivo_html, str):
-                raise TypeError("El primer parametro deber ser una cadena[str], se obtuvo en su lugar: ", type(archivo_html))
+                raise TypeError("El primer parametro deber ser una cadena[str], \
+                                 se obtuvo en su lugar: ", type(archivo_html))
             if not archivo_html.endswith(extension_pred):
                 raise ValueError("El Archivo no tiene una extension correcta.")
             # archivo = archivo_html.split('.')
@@ -49,8 +50,8 @@ class Runner(object):
         return self.regla
 
     def respuesta(self, ruta, entorno):
-        # TODO: wrap 
-        return self.regla[ruta](entorno['REQUEST_METHOD'])
+        # TODO: wrap
+        return self.regla[ruta](entorno)
 
     def aplicacion_wsgi(self, entorno, respuesta):
         encabezado = [('Content-Type', 'text/html')]
