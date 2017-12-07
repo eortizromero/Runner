@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from wsgiref.simple_server import make_server as servir
 
 def get_wsgi_status():
     status = '200 OK'
@@ -9,16 +8,16 @@ def get_wsgi_headers():
     header = [('Content-Type', 'text/html')]
     return header
 
-def inicio():
-    return RespuestaBase('Hola Mundo')
+# def inicio():
+#     return RespuestaBase('Hola Mundo')
 
-def app(env, res):
-    path = env['PATH_INFO'] or '/'
-    if path == '/':
-        response = inicio()
-    else:
-        response = RespuestaBase('Not Found', status=404)
-    return response(env, res)
+# def app(env, res):
+#     path = env['PATH_INFO'] or '/'
+#     if path == '/':
+#         response = inicio()
+#     else:
+#         response = RespuestaBase('Not Found', status=404)
+#     return response(env, res)
 
 class RespuestaBase(object):
     status_predeterminado = 200
@@ -41,7 +40,7 @@ class RespuestaBase(object):
         res(status, headers)
         return response
 
-if __name__ == '__main__':
-    httpd = servir('', 5000, app)
-    print "*** Corriendo en http://localhost:5000"
-    httpd.serve_forever()
+class Respuesta(RespuestaBase):
+    """
+    RespuestaBase 
+    """

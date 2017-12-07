@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from wsgiref.simple_server import make_server
-# from functools import wraps
+from peticion import Peticion
+from respuesta import Respuesta
 
 def imprimir(f):
     def decorador():
@@ -48,6 +49,7 @@ class Runner(object):
         return self.regla
 
     def respuesta(self, ruta, entorno):
+        # TODO: wrap 
         return self.regla[ruta](entorno['REQUEST_METHOD'])
 
     def aplicacion_wsgi(self, entorno, respuesta):

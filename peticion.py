@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 
 class PeticionBase(object):
-    def __init__(self, entorno, llenar_solicitud=True):
+    def __init__(self, entorno=None):
         self.entorno = entorno
-        if llenar_solicitud:
-            self.entorno['Runner.peticion'] = self
-        print self.entorno
+        self.entorno['Runner.peticion'] = self
+
+class Peticion(PeticionBase):
+    """
+    Base Peticion
+    """
