@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from wsgiref.simple_server import make_server
+# from functools import wraps
 
 def imprimir(f):
     def decorador():
@@ -13,15 +14,21 @@ def index():
 print index()
 
 extensiones = ('.html', '.htm')
+extension_pred = '.html'
 
 def pagina(archivo_html=None):
     if archivo_html is not None:
         if archivo_html != '':
-            archivo = archivo_html.split('.')
-            extension = "." + "".join(archivo[1])
-            if not extension in extensiones:
-                ext = " ".join(extensiones)
-                raise ValueError("El archivo debe tener la extension %s" % ext)
+            if not isinstance(archivo_html, str):
+                raise TypeError("El primer parametro deber ser una cadena[str], se obtuvo en su lugar: ", type(archivo_html))
+            if not archivo_html.endswith(extension_pred):
+                raise ValueError("El Archivo no tiene una extension correcta.")
+            # archivo = archivo_html.split('.')
+            # extension = "." + "".join(archivo[1])
+
+            # if not extension in extensiones:
+            #     ext = " ".join(extensiones)
+            #     raise ValueError("El archivo debe tener la extension %s" % ext)
             try:
                 with open(archivo_html, 'r') as pagina:
                     html = pagina.read()
@@ -34,29 +41,23 @@ def pagina(archivo_html=None):
 
 class Runner(object):
     def __init__(self):
-        self.regla = []
-
-    def pagina_inicio(self):
-        return pagina('index.html')
-
-    def agregar(self, regla, funcion):
-        for r in (regla, funcion):
-            self.regla.append(r)
+        self.regla = {}
 
     @property
-    def mostrar(self):
+    def get_reglas(self):
         return self.regla
+
+    def respuesta(self, ruta, entorno):
+        return self.regla[ruta](entorno['REQUEST_METHOD'])
 
     def aplicacion_wsgi(self, entorno, respuesta):
         encabezado = [('Content-Type', 'text/html')]
         status = None
         res = None
-        ruta = entorno['PATH_INFO']
-
-        if ruta in self.mostrar:
+        ruta = entorno.get('PATH_INFO') or '/'
+        if ruta in self.get_reglas:
             status = '200 OK'
-            print self.regla
-            res = self.pagina_inicio() # TODO: renderizar el metodo de que trae la regla actual para mostrar su contenido
+            res = self.respuesta(ruta, entorno)
         else:
             status = '404 NOT FOUND'
             res = "Pagina no encontrada"
@@ -95,23 +96,15 @@ class Runner(object):
             raise TypeError("Los metodos deben ser un Iterable[str] no un String.")
 
         metodos = set(m.upper() for m in metodos)
-        # print "Regla", regla
-        # self.regla.append((regla, funcion_param))
-        self.agregar(regla, funcion_param)
+        self.regla[regla] = funcion_param
         # regla = self.agregar_regla(regla, metodos=metodos, **opciones)
-
 
     def ruta(self, regla, **opciones):
         def decorador(funcion):
-            # self.regla[regla] = funcion
-            # return funcion
             parametro = opciones.pop('parametro', None)
             self.agregar_regla_url(regla, parametro, funcion, **opciones)
+            return funcion
         return decorador
-
-    def namecall(self, name, *args, **kwargs):
-        if name in self.funcion:
-            self.funcion[name](*args,**kwargs)
 
     def correr(self, dominio='127.0.0.1', puerto=8000):
         httpd = make_server(dominio, puerto, self)
