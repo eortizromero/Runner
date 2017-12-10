@@ -5,6 +5,7 @@ from peticion import Peticion
 from respuesta import Respuesta
 import os
 import pkgutil
+import sys
 from itertools import chain
 
 
@@ -136,7 +137,7 @@ class Runner(object):
     agregar_ruta_cls = Ruta
     peticion_clase = Peticion
     respuesta_clase = Respuesta
-    nombre_imp = None
+    # nombre_imp = None
     ruta_raiz = None
 
     def __init__(self,
@@ -144,6 +145,7 @@ class Runner(object):
         instancia_relativa_config=False,
         ruta_raiz=None,
         ruta_instancia=None):
+        self.nombre_imp = nombre_imp
         self.regla = defaultdict()
         self.mapa_url = Mapa()
         self.funciones_vista = {}
@@ -176,6 +178,7 @@ class Runner(object):
         return self.clase_config(ruta_raiz, self.config_predet)
     
     def auto_ruta_instancia(self):
+        print "Nombre imp", self.nombre_imp
         prefijo, ruta_paquete = ubicar_paquete(self.nombre_imp)
         if prefijo is None:
             return os.path.join(ruta_paquete, 'instancia')
@@ -227,7 +230,7 @@ class Runner(object):
             func(peticion_clase.final, peticion_clase.vista_args)
         funcs = self.antes_peticion_funcs.get(None, ())
         if bp is not None and bp in self.antes_peticion_funcs:
-            funcs = chain(funcs, self.antes_peticion_funcs[bp]):
+            funcs = chain(funcs, self.antes_peticion_funcs[bp])
         for func in funcs:
             valor_retornado = func()
             if valor_retornado is not None:
