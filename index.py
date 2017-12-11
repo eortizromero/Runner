@@ -129,8 +129,24 @@ class Mapa(object):
             regla.enlazar(self)
             self._reglas.append(regla)
             #self._reglas_por_final.setdefault(regla.final, []).append(regla)
+
+class DiccInmutable(dict):
+    def __repr__(self):
+        return '%s(%s)' % (
+        self.__class__.__name__,
+        dict.__repr__(self),
+    )
+
+    def copy(self):
+        return dict(self)
+
+    def __copy__(self):
+        return self
             
-    
+class Config(dict):
+    def __init__(self, ruta_raiz, defaults=None):
+        dict.__init__(self, defaults or {})
+        self.ruta_raiz = ruta_raiz 
     
 
 class Runner(object):
@@ -139,6 +155,12 @@ class Runner(object):
     respuesta_clase = Respuesta
     # nombre_imp = None
     ruta_raiz = None
+    clase_config = Config
+
+    config_predet = DiccInmutable({
+        'APPLICATION_ROOT':             '/',
+        'SERVER_NAME':                  None,        
+    })
 
     def __init__(self,
         nombre_imp=__name__,
