@@ -100,7 +100,7 @@ class Ruta(object):
             if 'HEAD' not in self.metodos and 'GET' in self.metodos:
                 self.metodos.add('HEAD')
         self.final = final
-    
+
     def obtener_reglas(self, mapa):
         yield self
 
@@ -120,7 +120,7 @@ class Mapa(object):
         self._reglas = []
         self._reglas_por_final = {}
         self.charset = charset
-    
+
         for regla_fab in reglas or ():
             self.agregar(regla_fab)
 
@@ -142,12 +142,12 @@ class DiccInmutable(dict):
 
     def __copy__(self):
         return self
-            
+
 class Config(dict):
     def __init__(self, ruta_raiz, defaults=None):
         dict.__init__(self, defaults or {})
-        self.ruta_raiz = ruta_raiz 
-    
+        self.ruta_raiz = ruta_raiz
+
 
 class Runner(object):
     agregar_ruta_cls = Ruta
@@ -159,7 +159,7 @@ class Runner(object):
 
     config_predet = DiccInmutable({
         'APPLICATION_ROOT':             '/',
-        'SERVER_NAME':                  None,        
+        'SERVER_NAME':                  None,
     })
 
     def __init__(self,
@@ -198,7 +198,7 @@ class Runner(object):
         if instancia_relativa:
             ruta_raiz = self.ruta_instancia
         return self.clase_config(ruta_raiz, self.config_predet)
-    
+
     def auto_ruta_instancia(self):
         print "Nombre imp", self.nombre_imp
         prefijo, ruta_paquete = ubicar_paquete(self.nombre_imp)
@@ -213,14 +213,35 @@ class Runner(object):
     def respuesta(self, ruta, entorno):
         # TODO: wrap
         return self.regla[ruta](entorno)
-    
+
     def obtener_entorno(self):
         pass
 
     def envio_peticion(self):
         peticion = ''
-    
-    
+
+    def manejar_excepcion_usuario(self, ex):
+        tipo_exc, tipo_valor, tb = sys.exc_info()
+        print "Exception User: %s" % ex
+
+    def manejar_excepcion(self, ex):
+        tipo_exc, tipo_valor, tb = sys.exc_info()
+        print "Exception : %s" % ex
+
+    def hacer_respuesta(self, valor_retornado):
+        status = encabezados = None
+        if isinstance(valor_retornado, (tuple, list)):
+            tam_valor_retornado = len(valor_retornado)
+            if tam_valor_retornado == 3:
+                valor_retornado, status, encabezados = valor_retornado
+            elif tam_valor_retornado == 2:
+                if isinstance(valor_retornado[1], (dict, tuple, list)):
+                    valor_retornado, encabezados = valor_retornado
+                else:
+                    valor_retornado, status = valor_retornado
+            else:
+                raise TypeError("La vista funcion no retorna una tupla valida.")
+
     def envio_peticion_completo(self):
         try:
             valor_retornado = self.preprocesar_peticion()
@@ -229,6 +250,9 @@ class Runner(object):
         except Exception as ex:
             valor_retornado = self.manejar_excepcion_usuario(ex)
         return self.finaliza_peticion(valor_retornado)
+
+    def finaliza_peticion(self, valor_retornado):
+        respuesta = self.hacer_respuesta(valor_retornado)
 
     def crear_adaptador_url(self, peticion):
         if peticion is not None:
@@ -260,7 +284,7 @@ class Runner(object):
 
     def contexto_peticion(self, entorno):
         return ContextoPeticion(self, entorno)
-        
+
     def aplicacion_wsgi(self, entorno, respuesta):
         ctx_pet = self.contexto_peticion(entorno)
         error = None
@@ -275,7 +299,7 @@ class Runner(object):
             raise
         return res(entorno, respuesta)
         # finally:
-            
+
         # encabezado = [('Content-Type', 'text/html')]
         # status = None
         # res = None
@@ -298,7 +322,7 @@ class Runner(object):
     def agregar_regla_url(self, regla, final=None, funcion_param=None, proveer_func_autom=None, **opciones):
         if final is None:
             final = self.final_vista(funcion_param)
-        
+
         opciones['final'] = final
 
         metodos = opciones.pop('metodos', None)
@@ -322,7 +346,7 @@ class Runner(object):
                 metodos_requeridos.add('OPTIONS')
             else:
                 proveer_func_autom = False
-        metodos |= metodos_requeridos 
+        metodos |= metodos_requeridos
 
         # self.regla[regla] = funcion_param
         regla = self.agregar_ruta_cls(regla, metodos=metodos, **opciones)
