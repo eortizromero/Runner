@@ -82,7 +82,11 @@ class ContextoPeticion(object):
         if peticion is None:
             peticion = aplicacion.peticion_clase(entorno)
         self.peticion = peticion
-        self.adaptador_url = {}
+        self.adaptador_url = aplicacion.crear_adaptador_url(self.peticion)
+
+    def peticion_encontrada(self):
+        try:
+            ruta_url, self.peticion.vista_args = self.adaptador_url
 
 class Ruta(object):
     def __init__(self, regla, metodos=None, final=None):
@@ -113,7 +117,24 @@ class Ruta(object):
     def compilar(self):
         self._convertidores = {}
 
+tipo_texto = str
 
+def _obtener_entorno(obj):
+    ent = getattr(obj, 'entorno', obj)
+    return ent
+
+
+def decodificar_wsgi(val, charset='utf-8', errores='remplazar'):
+    return val.decode(charset, errores)
+
+def a_unicode(nombre, charset=sys.getdefaultencoding(), errores='estricto', alojar_charset_none=False):
+    if nombre is None:
+        return None
+    if not isinstance(nombre, bytes):
+        return tipo_texto(nombre)
+    if charset is None and alojar_charset_none:
+        return nombre
+    return nombre.decode(charset, errores)
 
 class Mapa(object):
     def __init__(self, reglas=None, charset='utf-8'):
@@ -124,11 +145,112 @@ class Mapa(object):
         for regla_fab in reglas or ():
             self.agregar(regla_fab)
 
+
+
     def agregar(self, regla_fab):
         for regla in regla_fab.obtener_reglas(self):
             regla.enlazar(self)
             self._reglas.append(regla)
             #self._reglas_por_final.setdefault(regla.final, []).append(regla)
+
+    def enlazar(self, nombre_servidor, nombre_script=None, subdominio=None,
+                esquema_url='http', metodo_predet='GET', ruta_info=None, args_consulta=None):
+        nombre_servidor = nombre_servidor.lower()
+        if nombre_script is None:
+            nombre_script = '/'
+        try:
+            nombre_servidor = ''
+        except:
+            raise UnicodeError("Unicode Error")
+        return AdaptadorMapa(self, nombre_servidor, nombre_script, 
+                             subdominio, esquema_url, ruta_info, 
+                             metodo_predet, args_consulta) 
+
+    def enlazar_a_entorno(self, entorno, nombre_servidor=None, subdominio=None):
+        entorno = _obtener_entorno(entorno)
+        if 'HTTP_HOST' in entorno:
+            nombre_servidor_wsgi = entorno['HTTP_HOST']
+            if entorno['wsgi.url_scheme'] == 'http' \
+                and nombre_servidor_wsgi.endswith(':80'):
+                nombre_servidor_wsgi = nombre_servidor_wsgi[:-3]
+            elif entorno['wsgi.url_scheme'] == 'https' \
+                and nombre_servidor_wsgi.endswith(':443'):
+                nombre_servidor_wsgi = nombre_servidor_wsgi[:-4]
+        else:
+            nombre_servidor_wsgi = entorno['SERVER_NAME']
+            if (entorno['wsgi.url_scheme'], entorno['SERVER_PORT']) not in \
+                (('https', '443'), ('http', '80')):
+                nombre_servidor_wsgi += ':' + entorno['SERVER_PORT']
+
+        nombre_servidor_wsgi = nombre_servidor_wsgi.lower()
+
+        if nombre_servidor is None:
+            nombre_servidor = nombre_servidor_wsgi
+        else:
+            nombre_servidor = nombre_servidor.lower()
+
+        if subdominio is None:
+            _nombre_servidor_act = nombre_servidor_wsgi.split('.')
+            _nombre_servidor_real = nombre_servidor.split('.')
+            _offs = -len(_nombre_servidor_real)
+            if _nombre_servidor_act[_offs:] != _nombre_servidor_real:
+                subdominio = '<invalid>'
+            else:
+                subdominio = '.'join(filter(None, _nombre_servidor_act[:_offs]))
+
+        def _obtener_cadena_swgi(nombre):
+            val = entorno.get(nombre)
+            if val is not None:
+                return decodificar_wsgi(val, self.charset)
+
+        nombre_script = _obtener_cadena_swgi('SCRIPT_NAME')
+        ruta_info = _obtener_cadena_swgi('PATH_INFO')
+        args_consulta = _obtener_cadena_swgi('QUERY_STRING')
+        return Mapa.enlazar(self, nombre_servidor, nombre_script, subdominio,
+                            entorno['wsgi.url_scheme'], entorno['REQUEST_METHOD'],
+                            ruta_info, args_consulta=args_consulta
+                            )
+
+
+class AdaptadorMapa(object):
+    def __init__(self, mapa, nombre_servidor, nombre_script, 
+                 subdominio, esquema_url, ruta_info, metodo_predet, args_consulta=None):
+        self.mapa = mapa
+        self.nombre_servidor = a_unicode(nombre_servidor)
+        nombre_script = a_unicode(nombre_script)
+        if not nombre_script.endswith(u'/'):
+            nombre_script += u'/'
+        self.nombre_script = nombre_script
+        self.subdominio = a_unicode(subdominio)
+        self.esquema_url = a_unicode(esquema_url)
+        self.ruta_info = a_unicode(ruta_info)
+        self.metodo_predet = a_unicode(metodo_predet)
+        self.args_consulta = args_consulta
+
+    def enviar(self, vista_func, ruta_info=None, metodo=None, c_excepciones_http=False):
+        try:
+            try:
+                final, args = self.encontrado(ruta_info, metodo)
+            except Exception as e:
+                if c_excepciones_http:
+                    return e
+                raise
+
+    def encontrado(self, ruta_info=None, metodo=None, retorna_ruta=False, args_consulta=None):
+        # self.mapa.actualizar() TODO: Agregar :metodo: `actualizar` en la clase Mapa()
+        if ruta_info is None:
+            ruta_info = self.ruta_info
+        else:
+            ruta_info = a_unicode(ruta_info, self.mapa.charset)
+        if args_consulta is None:
+            args_consulta = self.args_consulta
+        metodo = (metodo or self.metodo_predet).upper()
+
+        ruta = u'%s|%s' % (
+            # TODO: Agregar :atributo `host_encontrado`: en la clase Mapa()
+            self.mapa.host_encontrado and self.nombre_servidor or self.subdominio, ruta_info and '/%s' % ruta
+            )
+
 
 class DiccInmutable(dict):
     def __repr__(self):
